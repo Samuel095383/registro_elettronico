@@ -18,6 +18,7 @@ import 'package:registro_elettronico/feature/didactics/domain/repository/didacti
 import 'package:registro_elettronico/feature/grades/domain/model/grades_section.dart';
 import 'package:registro_elettronico/feature/grades/domain/repository/grades_repository.dart';
 import 'package:registro_elettronico/feature/homework/data/homework_remote_datasource.dart';
+import 'package:registro_elettronico/feature/homework/data/homework_agenda_sync.dart';
 import 'package:registro_elettronico/feature/lessons/domain/repository/lessons_repository.dart';
 import 'package:registro_elettronico/feature/notes/domain/repository/notes_repository.dart';
 import 'package:registro_elettronico/feature/noticeboard/domain/repository/noticeboard_repository.dart';
@@ -121,6 +122,7 @@ class SRUpdateManager {
     ]);
     await _syncHomeworks(notify: true);
     await _notifyNewContent();
+    await updateNextEventWidget();
     return true;
   }
 
@@ -259,8 +261,13 @@ class SRUpdateManager {
   Future<void> _syncHomeworks({required bool notify}) async {
     try {
       final datasource = sl<HomeworkRemoteDatasource>();
+      final database = sl<SRDatabase>();
       final previous = datasource.getCachedHomeworks();
       final current = await datasource.refresh();
+      await syncHomeworkAgendaEvents(
+        agendaLocalDatasource: database.agendaLocalDatasource,
+        homeworks: current,
+      );
       if (!notify || previous.isEmpty ||
           !(sharedPreferences!.getBool(PrefsConstants.didacticsNotifications) ?? true)) return;
       final ids = previous.map((item) => item.id).toSet();
