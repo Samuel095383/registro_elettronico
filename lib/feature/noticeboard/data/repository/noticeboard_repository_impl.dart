@@ -204,45 +204,41 @@ class NoticeboardRepositoryImpl implements NoticeboardRepository {
       try {
         resourceStreamController.add(Resource.loading(progress: 0));
         unawaited(
-          _readNoticeAndGetPath(attachment: attachment, notice: notice!).then(
-            (filePath) {
-              noticeboardRemoteDatasource!
-                  .downloadNotice(
-                notice: notice,
-                attachment: attachment,
-                savePath: filePath,
-                onProgress: (received, total) {
-                  resourceStreamController.add(
-                    Resource.loading(progress: received / total),
-                  );
-                },
-              )
-                  .then(
-                (_) async {
-                  final localModel = notice.toLocalModel();
-
-                  await noticeboardLocalDatasource!
-                      .updateNotice(localModel.copyWith(readStatus: true));
-
-                  File file = File(filePath);
-                  resourceStreamController.add(
-                    Resource.success(
-                      data: AttachmentFile(file),
-                    ),
-                  );
-                },
-              ).catchError((e, s) {
+          _readNoticeAndGetPath(attachment: attachment, notice: notice!)
+              .then((filePath) async {
+            await noticeboardRemoteDatasource!.downloadNotice(
+              notice: notice,
+              attachment: attachment,
+              savePath: filePath,
+              onProgress: (received, total) {
                 resourceStreamController.add(
-                  Resource.failed(
-                    error: handleError(
-                        '[NoticeboardRepository] Error while downloading notice attachment $attachment',
-                        e,
-                        s),
+                  Resource.loading(
+                    progress: total > 0 ? received / total : null,
                   ),
                 );
-              }).whenComplete(() => resourceStreamController.close());
-            },
-          ),
+              },
+            );
+
+            final localModel = notice.toLocalModel();
+
+            await noticeboardLocalDatasource!
+                .updateNotice(localModel.copyWith(readStatus: true));
+
+            resourceStreamController.add(
+              Resource.success(
+                data: AttachmentFile(File(filePath)),
+              ),
+            );
+          }).catchError((e, s) {
+            resourceStreamController.add(
+              Resource.failed(
+                error: handleError(
+                    '[NoticeboardRepository] Error while downloading notice attachment $attachment',
+                    e,
+                    s),
+              ),
+            );
+          }).whenComplete(() => resourceStreamController.close()),
         );
 
         yield* resourceStreamController.stream;
@@ -270,7 +266,12 @@ class NoticeboardRepositoryImpl implements NoticeboardRepository {
     required NoticeDomainModel notice,
     required AttachmentDomainModel attachment,
   }) async {
-    await noticeboardRemoteDatasource!.readNotice(notice.code, notice.id);
+    try {
+      await noticeboardRemoteDatasource!.readNotice(notice.code, notice.id);
+    } catch (_) {
+      // Marking the notice as read is not required to download its attachment:
+      // a failure here must not block the download.
+    }
     final directory = await getApplicationDocumentsDirectory();
     final ext = attachment.fileName!.split('.').last;
     final filePath =

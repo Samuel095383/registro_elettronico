@@ -95,7 +95,7 @@ class NoticeboardRemoteDatasource {
       );
     }
     return dio.download(
-      '/students/{studentId}/noticeboard/attach/${notice.code}/${notice.id}/101',
+      '/students/{studentId}/noticeboard/attach/${notice.code}/${notice.id}/${attachment.attachNumber}',
       savePath,
       onReceiveProgress: onProgress,
     );
