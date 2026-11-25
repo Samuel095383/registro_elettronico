@@ -89,7 +89,17 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          rm -f android/app/release.jks android/key.properties
+          if [ -z "$KEYSTORE" ] || [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::warning::Android release signing secrets are not configured; release builds will use the debug signing key."
+            exit 0
+          fi
           printf '%s' "$KEYSTORE" | base64 --decode > android/app/release.jks
+          if [ ! -s android/app/release.jks ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 decoded to an empty file; release builds will use the debug signing key."
+            rm -f android/app/release.jks
+            exit 0
+          fi
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=release.jks\n' \
             "$STORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
       - name: Install compatible Android NDK

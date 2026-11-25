@@ -33,6 +33,14 @@ if (keystorePropertiesFile.exists()) {
        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def releaseKeystoreFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+def hasReleaseSigning = keystorePropertiesFile.exists() &&
+        releaseKeystoreFile != null &&
+        releaseKeystoreFile.exists() &&
+        keystoreProperties['keyAlias'] &&
+        keystoreProperties['keyPassword'] &&
+        keystoreProperties['storePassword']
+
 android {
     compileSdkVersion 35
     buildToolsVersion "35.0.0"
@@ -67,7 +75,9 @@ android {
    
    buildTypes {
        release {
-           signingConfig signingConfigs.release
+           // Fall back to the debug key when no release keystore is configured,
+           // so CI can still produce installable release artifacts.
+           signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
        }
    }
 
