@@ -7,7 +7,9 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    # macos-14 was retired on 2026-11-02. The workflow pins Flutter 2.5.3
+    # with `architecture: x64`, so keep a native Intel runner.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: subosito/flutter-action@v2
